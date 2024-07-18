@@ -95,8 +95,13 @@ export class PowerPointEditor {
             //Delete all refs to slide we removed
             var rId = 0
             relsXml.Relationships.Relationship = relsXml.Relationships.Relationship.filter(rel => {
-                rId = rel['$'].Id
-                return !(rel['$'].Target.includes(`slide${index}.xml`))
+                if (!(rel['$'].Target.includes(`slide${index}.xml`))) {
+                    return true
+                }
+                else {
+                    rId = rel['$'].Id
+                    return false
+                }
             }
             );
             //TODO: Parse presentation.xml and remove all references to the old rID
@@ -104,13 +109,17 @@ export class PowerPointEditor {
             //You tried but did it oncrrectly somehow
             var presentationData = await this.powerpointData.file(presPath)?.async('string');
             var presXML = await parseStringPromise(presentationData)
-            console.log("PRES XML");
-            console.log(presXML['p:presentation']['p:sldIdLst']);
-            console.log(presXML['p:presentation']['p:sldIdLst'][0]['p:sldId'])
-            presXML = presXML['p:presentation']['p:sldIdLst'][0]['p:sldId'].filter((rel) => {
+            presXML['p:presentation']['p:sldIdLst'][0]['p:sldId'] = presXML['p:presentation']['p:sldIdLst'][0]['p:sldId'].filter((rel) => {
                 console.log(rId);
-                return !(rel['$']['r:id'] == rId)
+                if (!(rel['$']['r:id'] == rId)) {
+                    return true;
+                }
+                else {
+                    console.log("ID was found removing")
+                    return false
+                }
             })
+            console.log(presXML['p:presentation']['p:sldIdLst'][0]['p:sldId'])
             //Update index of all other slides to match
             relsXml.Relationships.Relationship.forEach(rel => {
                 const target = rel['$'].Target;
@@ -119,13 +128,10 @@ export class PowerPointEditor {
                     const slideIndex = parseInt(match[1], 10);
                     if (slideIndex > index) {
                         const newSlideIndex = slideIndex - 1;
-                        console.log(rel['$'].Target);
                         rel['$'].Target = target.replace(`slide${slideIndex}.xml`, `slide${newSlideIndex}.xml`);
-                        console.log(rel['$'].Target);
                     }
                 }
             });
-            console.log(relsXml);
             for (const filename in this.powerpointData.files) {
                 if (filename.includes(`ppt/slides/slide`) && filename.endsWith('.xml')) {
                     const slideFile = this.powerpointData.file(filename);
@@ -146,7 +152,6 @@ export class PowerPointEditor {
                                 const relsFile = this.powerpointData.file(relsFilename);
                                 if (relsFile) {
                                     this.powerpointData.file(newRelsFilename, await relsFile.async('string'));
-                                    console.log(`Replacing ${relsFilename} with ${newRelsFilename}`);
                                     this.powerpointData.remove(relsFilename);
                                 }
                             }
