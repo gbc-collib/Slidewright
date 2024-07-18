@@ -2,37 +2,7 @@
 import JSZip, { JSZipObject } from "jszip";
 const { parseStringPromise, Builder } = require('xml2js');
 import fs from "fs";
-import path from "path"
 const outpath = './test-out'
-
-function deleteObjectWithProperty(obj, targetKey, targetValue) {
-    if (typeof obj !== 'object' || obj === null) {
-        return obj;
-    }
-
-    if (Array.isArray(obj)) {
-        for (let i = 0; i < obj.length; i++) {
-            if (typeof obj[i] === 'object' && obj[i] !== null && obj[i][targetKey] === targetValue) {
-                obj.splice(i, 1);
-                i--;
-            } else {
-                obj[i] = deleteObjectWithProperty(obj[i], targetKey, targetValue);
-            }
-        }
-    } else {
-        for (const key in obj) {
-            if (obj.hasOwnProperty(key)) {
-                if (typeof obj[key] === 'object' && obj[key] !== null && obj[key][targetKey] === targetValue) {
-                    delete obj[key];
-                } else {
-                    obj[key] = deleteObjectWithProperty(obj[key], targetKey, targetValue);
-                }
-            }
-        }
-    }
-
-    return obj;
-}
 
 export class PowerPointEditor {
     public powerpointData: JSZip = new JSZip();
@@ -60,58 +30,11 @@ export class PowerPointEditor {
         });
 
     }
-    public async unzipPowerPoint() {
-        const powerpoint: Buffer = fs.readFileSync("./test.pptx");
-        const zip = new JSZip();
-        this.powerpointData = await zip.loadAsync(powerpoint);       // Extract each file from the zip
-        for (const filename in zip.files) {
-            const file = zip.files[filename];
-            if (!file.dir) {
-                // Extract the file contents
-                const content: Buffer = await file.async("nodebuffer");
-                const filePath = path.join(outpath, "powerpoint", filename);
-                const directory = path.dirname(filePath);
-                fs.mkdirSync(directory, { recursive: true });
-                fs.writeFileSync(`${outpath}/powerpoint/${filename}`, content);
-            }
-        }
-        console.log("DONE UNZIPPED");
-    }
 
-
-    public zipPowerPoint(): Promise<Buffer> {
-        const allFilePaths: string[] = fs.readdirSync(`${outpath}/powerpoint/`, { recursive: true }) as string[];
-        console.log(allFilePaths);
-        const zip = new JSZip();
-        for (const file of allFilePaths) {
-            const stat = fs.lstatSync(`${outpath}/powerpoint/${file}`);
-            if (stat.isDirectory()) {
-                continue;
-            }
-            zip.file(file, fs.readFileSync(`${outpath}/powerpoint/${file}`));
-        }
-        return new Promise((resolve, reject) => {
-            try {
-                zip.generateNodeStream({ streamFiles: true })
-                    .pipe(fs.createWriteStream(`${outpath}/powerpoint.pptx`)
-                        .on("finish", () => {
-                            resolve(fs.readFileSync(`${outpath}/powerpoint.pptx`));
-                        }));
-            }
-            catch (error) {
-                reject(error);
-            }
-        });
-    }
     public writePowerPoint(powerpoint: Buffer, filePath: string) {
         fs.writeFileSync(filePath, powerpoint)
 
     }
-    public async cleanup() {
-        fs.rmSync(`${outpath}/powerpoint`, { recursive: true, force: true });
-        //Possibly just delete whole ./out/
-    }
-
 
     public async deleteSlide(index: number) {
         const slideXmlPath = `ppt/slides/slide${index}.xml`;
@@ -164,6 +87,7 @@ export class PowerPointEditor {
 const test = async function() {
     const pe = new PowerPointEditor();
     await pe.loadPowerPoint()
+    await pe.deleteSlide(1)
     await pe.deleteSlide(1)
     await pe.savePowerPoint()
 }
