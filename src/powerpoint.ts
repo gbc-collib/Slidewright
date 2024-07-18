@@ -124,7 +124,7 @@ export class PowerPointEditor {
             var relsXml = await parseStringPromise(relsData);
             //Delete all refs to slide we removed
             var rId = 0
-            relsXml.Relationships.Relationship = relsXml.Relationships.Relationship.filter(rel => {
+            relsXml.Relationships.Relationship.forEach(rel => {
                 if (!(rel['$'].Target.includes(`slide${index}.xml`))) {
                     return true
                 }
@@ -134,9 +134,6 @@ export class PowerPointEditor {
                 }
             }
             );
-            //TODO: Parse presentation.xml and remove all references to the old rID
-            //I.e. slide 1 is rID9
-            //You tried but did it oncrrectly somehow
             var presentationData = await this.powerpointData.file(presPath)?.async('string');
             var presXML = await parseStringPromise(presentationData)
             presXML['p:presentation']['p:sldIdLst'][0]['p:sldId'] = presXML['p:presentation']['p:sldIdLst'][0]['p:sldId'].filter((rel) => {
@@ -151,134 +148,6 @@ export class PowerPointEditor {
             var builder = new Builder();
             const updatedPresXML = builder.buildObject(presXML);
             this.powerpointData.file(presPath, updatedPresXML);
-
-            for (const filename in this.powerpointData.files) {
-                if (filename.includes(`ppt/slideMasters/_rels/`)) {
-                    let masterSlideData = await this.powerpointData.file(filename)?.async('string');
-                    let masterSlideXML = await parseStringPromise(masterSlideData)
-                    //console.log(masterSlideXML.Relationships.Relationship[2]);
-                    masterSlideXML.Relationships.Relationship = masterSlideXML.Relationships.Relationship.filter((rel) => {
-                        if (!(rel['$'].Id == rId)) {
-                            return true;
-                        }
-                        else {
-                            return false;
-                        }
-                    })
-                    const updatedSlideXML = builder.buildObject(masterSlideXML);
-                    this.powerpointData.file(filename, updatedSlideXML)
-
-                }
-                if (filename.includes(`ppt/slideMasters/slideMaster`)) {
-                    let masterSlideData = await this.powerpointData.file(filename)?.async('string');
-                    let masterSlideXML = await parseStringPromise(masterSlideData)
-                    //console.log(masterSlideXML.Relationships.Relationship[2]);
-                    masterSlideXML = deleteObjectWithProperty(masterSlideXML, 'r:id', rId)
-                    const updatedSlideXML = builder.buildObject(masterSlideXML);
-                    this.powerpointData.file(filename, updatedSlideXML)
-
-                }
-                if (filename.includes(`ppt/slides/_rels`)) {
-                    let slideData = await this.powerpointData.file(filename)?.async('string');
-                    let slideXML = await parseStringPromise(slideData)
-                    //console.log(masterSlideXML.Relationships.Relationship[2]);
-                    slideXML.Relationships.Relationship = slideXML.Relationships.Relationship.filter((rel) => {
-                        if (!(rel['$'].Id == rId)) {
-                            return true;
-                        }
-                        else {
-                            console.log("Found match, removing")
-                            return false;
-                        }
-                    })
-                    const updatedSlideXML = builder.buildObject(slideXML);
-                    this.powerpointData.file(filename, updatedSlideXML)
-
-                }
-                if (filename.includes(`ppt/slides/slide`)) {
-                    let slideData = await this.powerpointData.file(filename)?.async('string');
-                    let slideXML = await parseStringPromise(slideData)
-                    //console.log(masterSlideXML.Relationships.Relationship[2]);
-                    //TODO: Could optimize by selecting the object we need to crawl instead of whole page
-                    slideXML =
-                        deleteObjectWithProperty(slideXML, 'r:embed', rId);
-                    slideXML =
-                        deleteObjectWithProperty(slideXML, 'r:cs', rId);
-
-                    const updatedSlideXML = builder.buildObject(slideXML);
-                    this.powerpointData.file(filename, updatedSlideXML)
-
-                    //console.log(masterSlideXML.Relationships.Relationship[2]);
-                }
-                if (filename.includes(`ppt/slideLayouts/_rels`)) {
-                    let slideLayoutData = await this.powerpointData.file(filename)?.async('string');
-                    let layoutXML = await parseStringPromise(slideLayoutData)
-                    //console.log(masterSlideXML.Relationships.Relationship[2]);
-                    layoutXML.Relationships.Relationship = layoutXML.Relationships.Relationship.filter((rel) => {
-                        if (!(rel['$'].Id == rId)) {
-                            return true;
-                        }
-                        else {
-                            return false;
-                        }
-                    })
-
-                    const updatedSlideXML = builder.buildObject(layoutXML);
-                    this.powerpointData.file(filename, updatedSlideXML)
-
-                }
-                if (filename.includes(`ppt/slideLayouts/slideLayout`)) {
-                    let slideLayoutData = await this.powerpointData.file(filename)?.async('string');
-                    let layoutXML = await parseStringPromise(slideLayoutData)
-                    //console.log(masterSlideXML.Relationships.Relationship[2]);
-                    layoutXML['p:sldLayout']['p:cSld'][0]['p:spTree'] =
-                        deleteObjectWithProperty(layoutXML['p:sldLayout']['p:cSld'][0]['p:spTree'], 'r:id', rId);
-
-                    const updatedSlideXML = builder.buildObject(layoutXML);
-                    this.powerpointData.file(filename, updatedSlideXML)
-
-                }
-            }
-            //console.log(presXML['p:presentation']['p:sldIdLst'][0]['p:sldId'])
-            //Update index of all other slides to match
-            relsXml.Relationships.Relationship.forEach(rel => {
-                const target = rel['$'].Target;
-                const match = target.match(/slide(\d+).xml/);
-                if (match) {
-                    const slideIndex = parseInt(match[1], 10);
-                    if (slideIndex > index) {
-                        const newSlideIndex = slideIndex - 1;
-                        rel['$'].Target = target.replace(`slide${slideIndex}.xml`, `slide${newSlideIndex}.xml`);
-                    }
-                }
-            });
-            for (const filename in this.powerpointData.files) {
-                if (filename.includes(`ppt/slides/slide`) && filename.endsWith('.xml')) {
-                    const slideFile = this.powerpointData.file(filename);
-                    if (slideFile) {
-                        // Extract slide index from filename
-                        const match = filename.match(/slide(\d+)\.xml/);
-                        if (match) {
-                            const slideIndex = parseInt(match[1], 10);
-                            if (slideIndex > index) {
-                                // Rename file in memory
-                                const newFilename = `ppt/slides/slide${slideIndex - 1}.xml`;
-                                this.powerpointData.file(newFilename, slideFile.async('string'));
-                                this.powerpointData.remove(filename);
-
-                                // Also rename corresponding _rels file if it exists
-                                const relsFilename = `ppt/slides/_rels/slide${slideIndex}.xml.rels`;
-                                const newRelsFilename = `ppt/slides/_rels/slide${slideIndex - 1}.xml.rels`;
-                                const relsFile = this.powerpointData.file(relsFilename);
-                                if (relsFile) {
-                                    this.powerpointData.file(newRelsFilename, await relsFile.async('string'));
-                                    this.powerpointData.remove(relsFilename);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
             // Convert back to XML string and update in zip
             var builder = new Builder();
             const updatedRelsXml = builder.buildObject(relsXml);
