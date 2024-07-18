@@ -1,0 +1,33 @@
+{
+  "name": "slidewright",
+  "version": "1.0.0",
+  "description": "A typescript library for manipulating existing powerpoint templates",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gbc-collib/Slidewright.git"
+  },
+  "keywords": [
+    "pptx",
+    "powerpoint",
+    "ts",
+    "node"
+  ],
+  "author": "Collin Stasiak",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gbc-collib/Slidewright/issues"
+  },
+  "homepage": "https://github.com/gbc-collib/Slidewright#readme",
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.11",
+    "@types/xml2js": "^0.4.14"
+  }
+}
